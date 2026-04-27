@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "luniq"
+version = "1.0.0"
+description = "Luniq.AI server-side SDK for Python — track + identify + feature flags from your backend."
+readme = "README.md"
+requires-python = ">=3.9"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Luniq.AI" }]
+keywords = ["luniq", "analytics", "product-analytics", "feature-flags", "ab-testing"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = ["requests>=2.31"]
+
+[project.urls]
+Homepage = "https://uselunaai.com"
+Repository = "https://github.com/BitCodeHub/luniq-sdk-python"
+Issues = "https://github.com/BitCodeHub/luniq-sdk-python/issues"
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "responses>=0.24"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["luniq"]
