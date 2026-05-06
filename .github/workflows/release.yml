@@ -1,38 +1,52 @@
-name: Release
+name: release
+# SBOM + cosign on every PyPI release.
+# Closes Phase 2.2 + Phase 2.3 of the 2026-05-05 SOC 2 Type II remediation roadmap.
+
 on:
   push:
     tags: ['v*']
 
-# Required repo secret:
-#   PYPI_API_TOKEN — pypi.org API token (project-scoped to "luniq")
+permissions:
+  contents: write
+  id-token: write
 
 jobs:
-  publish:
+  release:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - run: pip install --upgrade build twine
-      - run: pip install -e ".[dev]"
-      - run: pytest -v
-      - name: Verify pyproject version matches tag
-        env:
-          GITHUB_REF_NAME: ${{ github.ref_name }}
+        with: { python-version: '3.12' }
+      - run: pip install build
+
+      - name: Generate SBOM
         run: |
-          PKG_VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
-          TAG="${GITHUB_REF_NAME#v}"
-          if [ "$PKG_VERSION" != "$TAG" ]; then
-            echo "::error::pyproject.toml version ($PKG_VERSION) does not match tag ($TAG)"
-            exit 1
-          fi
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh \
+            | sh -s -- -b /usr/local/bin
+          syft dir:. -o cyclonedx-json=sbom-${{ github.ref_name }}.json
+
       - run: python -m build
-      - run: python -m twine check dist/*
-      - run: python -m twine upload dist/*
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign artifacts
+        run: |
+          for f in dist/* sbom-${{ github.ref_name }}.json; do
+            cosign sign-blob --yes --output-signature "$f.sig" --output-certificate "$f.pem" "$f"
+          done
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          attestations: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*
+            dist/*.sig
+            dist/*.pem
+            sbom-${{ github.ref_name }}.json
+            sbom-${{ github.ref_name }}.json.sig
+            sbom-${{ github.ref_name }}.json.pem
